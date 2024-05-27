@@ -1,5 +1,7 @@
 import argparse
-from email_analysis import extract_eml_details, FROM_HEADER, ATTACHMENT_HASHES, URLS
+import re
+
+from email_analysis import  email_analysis
 
 
 def main():
@@ -11,17 +13,36 @@ def main():
     args = parser.parse_args()
 
     # Extract details from the EML file
-    eml_details = extract_eml_details(args.eml_file_path)
+    eml_details = email_analysis.extract_eml_details(args.eml_file_path)
 
-    # Print specific headers
-    print('\n\033[1m\033[4mHEADERS:\033[0m')
+    # Print specific headers in the desired order
     headers = eml_details['headers']
-    for key in ['Delivered-To', 'ARC-Authentication-Results', 'Return-Path', 'Date', 'From', 'Subject']:
+    ordered_headers = [
+        'Delivered-To',
+        'ARC-Authentication-Results',
+        'Return-Path',
+        'Date',
+        'From',
+        'Subject'
+    ]
+
+    # ARC-Authentication-Results specific sub-headers
+    arc_sub_headers = ['dkim', 'spf', 'dmarc']
+
+    print('\n\033[1m\033[4mHEADERS:\033[0m')
+    for key in ordered_headers:
         if key in headers:
-            print(f'{key}: {headers[key]}')
+            if key == 'ARC-Authentication-Results':
+                for sub_header in arc_sub_headers:
+                    pattern = rf'{sub_header}=[^\s;]+'
+                    match = re.search(pattern, headers[key])
+                    if match:
+                        print(f'{sub_header.upper()}: {match.group(0)}')
+            else:
+                print(f'{key}: {headers[key]}')
 
     # Print 'From' header stored in the global variable
-    print(f'\n\033[1mFrom Header (Global):\033[0m {FROM_HEADER}')
+    print(f'\n\033[1mFrom Header (Global):\033[0m {email_analysis.FROM_HEADER}')
 
     # Print X-Headers
     print('\n\033[1m\033[4mX-HEADERS:\033[0m')
@@ -30,13 +51,13 @@ def main():
 
     # Print Attachments
     print('\n\033[1m\033[4mATTACHMENTS:\033[0m')
-    for attachment in ATTACHMENT_HASHES:
+    for attachment in email_analysis.ATTACHMENT_HASHES:
         print(
             f"Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}")
 
     # Print URLs
     print('\n\033[1m\033[4mURLS:\033[0m')
-    for i, url in enumerate(URLS, 1):
+    for i, url in enumerate(email_analysis.URLS, 1):
         print(f'{i}. {url}')
 
 

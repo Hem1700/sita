@@ -33,7 +33,7 @@ def extract_eml_details(eml_file_path):
         FROM_HEADER = headers['From']
 
     # Extract X-headers
-    x_headers = {key: value for key, value in headers.items() if key.lower().startswith('x-')}
+    x_headers = {key: value for key, value in msg.items() if key.lower().startswith('x-')}
 
     # Extract attachments and their hashes
     attachments = []
@@ -77,8 +77,9 @@ def extract_eml_details(eml_file_path):
 
                 attachments.append(attachment)
 
-    # Extract URLs from the email body
+    # Extract URLs from the email body and filter out image URLs
     urls = []
+    image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp', '.tiff')
     for part in msg.walk():
         if part.get_content_type() == 'text/plain':
             text = part.get_payload(decode=True).decode('utf-8', errors='ignore')
@@ -87,12 +88,15 @@ def extract_eml_details(eml_file_path):
             html = part.get_payload(decode=True).decode('utf-8', errors='ignore')
             urls.extend(re.findall(r'http[s]?://\S+', html))
 
-    # Store unique URLs in the global variable
-    URLS.extend(list(set(urls)))
+    # Filter out URLs that point to images
+    filtered_urls = [url for url in urls if not url.lower().endswith(image_extensions)]
+
+    # Store unique filtered URLs in the global variable
+    URLS.extend(list(set(filtered_urls)))
 
     return {
         'headers': headers,
         'x_headers': x_headers,
         'attachments': attachments,
-        'urls': urls
+        'urls': filtered_urls
     }
