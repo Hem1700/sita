@@ -5,6 +5,7 @@ import re
 from email.policy import default
 
 # Global variables
+#New Updates
 FROM_HEADER = None
 ATTACHMENT_HASHES = []
 URLS = []
