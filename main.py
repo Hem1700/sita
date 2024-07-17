@@ -1,13 +1,12 @@
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, font
+from tkinter import filedialog, scrolledtext, messagebox
 from tkinter import ttk
 import webbrowser
 import re
 import email
 from tkhtmlview import HTMLLabel
-
 from email_analysis import email_analysis
-
+from virustotal_api import domain_lookup
 
 class EMLAnalyzerApp:
     def __init__(self, root):
@@ -26,15 +25,20 @@ class EMLAnalyzerApp:
         self.style.map('TButton', background=[('active', '#d9d9d9')])
         self.root.configure(bg='#f5f5f5')
 
-        self.create_upload_button()
+        self.create_buttons()
         self.create_notebook()
 
-    def create_upload_button(self):
+        self.sender_domain = None
+
+    def create_buttons(self):
         button_frame = ttk.Frame(self.root, padding="10 10 10 10")
         button_frame.pack(fill='x')
 
         self.upload_button = ttk.Button(button_frame, text="Upload EML File", command=self.upload_file)
-        self.upload_button.pack(pady=10)
+        self.upload_button.pack(side='left', pady=10, padx=5)
+
+        self.lookup_button = ttk.Button(button_frame, text="Domain Lookup", command=self.domain_lookup)
+        self.lookup_button.pack(side='left', pady=10, padx=5)
 
     def create_notebook(self):
         self.notebook = ttk.Notebook(self.root)
@@ -47,27 +51,29 @@ class EMLAnalyzerApp:
         self.tab_attachments = ttk.Frame(self.notebook, padding="10 10 10 10")
         self.tab_urls = ttk.Frame(self.notebook, padding="10 10 10 10")
         self.tab_preview = ttk.Frame(self.notebook, padding="10 10 10 10")
+        self.tab_lookup = ttk.Frame(self.notebook, padding="10 10 10 10")
 
         self.notebook.add(self.tab_headers, text='Headers')
         self.notebook.add(self.tab_attachments, text='Attachments')
         self.notebook.add(self.tab_urls, text='URLs')
         self.notebook.add(self.tab_preview, text='Preview')
+        self.notebook.add(self.tab_lookup, text='Lookup')
 
-        self.headers_text = scrolledtext.ScrolledText(self.tab_headers, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff',
-                                                      fg='#000000')
+        self.headers_text = scrolledtext.ScrolledText(self.tab_headers, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff', fg='#000000')
         self.headers_text.pack(expand=True, fill='both', padx=10, pady=10)
 
-        self.attachments_text = scrolledtext.ScrolledText(self.tab_attachments, wrap=tk.WORD, font=("Kanit", 10),
-                                                          bg='#ffffff', fg='#000000')
+        self.attachments_text = scrolledtext.ScrolledText(self.tab_attachments, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff', fg='#000000')
         self.attachments_text.pack(expand=True, fill='both', padx=10, pady=10)
 
         self.create_urls_tab()
 
         self.preview_frame = ttk.Frame(self.tab_preview)
         self.preview_frame.pack(expand=True, fill='both', padx=10, pady=10)
-        self.preview_html = HTMLLabel(self.preview_frame,
-                                      html="<p>Preview will appear here after uploading an email file.</p>")
+        self.preview_html = HTMLLabel(self.preview_frame, html="<p>Preview will appear here after uploading an email file.</p>")
         self.preview_html.pack(expand=True, fill='both')
+
+        self.lookup_text = scrolledtext.ScrolledText(self.tab_lookup, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff', fg='#000000')
+        self.lookup_text.pack(expand=True, fill='both', padx=10, pady=10)
 
     def create_urls_tab(self):
         columns = ('#', 'URL')
@@ -95,6 +101,7 @@ class EMLAnalyzerApp:
         self.attachments_text.delete(1.0, tk.END)
         self.urls_tree.delete(*self.urls_tree.get_children())
         self.preview_html.set_html("<p>Loading preview...</p>")
+        self.lookup_text.delete(1.0, tk.END)
 
         # Display Headers
         headers = eml_details['headers']
@@ -123,11 +130,15 @@ class EMLAnalyzerApp:
 
         self.headers_text.insert(tk.END, f'\nFrom Header (Global): {email_analysis.FROM_HEADER}\n')
 
+        # Extract domain from 'From' header for lookup
+        self.sender_domain = re.search("@[\w.]+", email_analysis.FROM_HEADER)
+        if self.sender_domain:
+            self.sender_domain = self.sender_domain.group()[1:]
+
         # Display Attachments
         self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n')
         for attachment in email_analysis.ATTACHMENT_HASHES:
-            self.attachments_text.insert(tk.END,
-                                         f"Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
+            self.attachments_text.insert(tk.END, f"Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
 
         # Display URLs
         self.display_urls(eml_details['urls'])
@@ -171,6 +182,19 @@ class EMLAnalyzerApp:
         url = self.urls_tree.item(item, 'values')[1]
         webbrowser.open(url)
 
+    def domain_lookup(self):
+        if not self.sender_domain:
+            messagebox.showerror("Error", "No sender domain found.")
+            return
+
+        result = domain_lookup(self.sender_domain)
+        if result:
+            self.lookup_text.delete(1.0, tk.END)
+            self.lookup_text.insert(tk.END, f"Results for domain: {self.sender_domain}\n\n")
+            for key, value in result['data']['attributes'].items():
+                self.lookup_text.insert(tk.END, f"{key}: {value}\n")
+        else:
+            messagebox.showerror("Error", "Failed to retrieve data from VirusTotal.")
 
 if __name__ == '__main__':
     root = tk.Tk()
