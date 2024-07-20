@@ -1,13 +1,10 @@
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox
-from tkinter import ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
 import webbrowser
-import re
-import email
-from tkhtmlview import HTMLLabel
 from email_analysis import email_analysis
 from virustotal_api import domain_lookup
-
+from ui_helpers import configure_styles, create_tab, create_scrolled_text, create_html_label
+import re
 
 class EMLAnalyzerApp:
     def __init__(self, root):
@@ -15,20 +12,10 @@ class EMLAnalyzerApp:
         self.root.title("EML Analyzer")
         self.root.geometry("1000x700")
 
-        self._configure_styles()
+        configure_styles(self.root)
         self._create_widgets()
 
         self.sender_domain = None
-
-    def _configure_styles(self):
-        self.style = ttk.Style()
-        self.style.configure('TNotebook.Tab', font=('Kanit', '12', 'bold'), padding=[10, 10])
-        self.style.configure('TLabel', font=('Kanit', 12), foreground='black')
-        self.style.configure('TButton', font=('Kanit', 12), padding=[5, 5])
-        self.style.configure('TFrame', background='#f5f5f5')
-        self.style.configure('Header.TLabel', background='#f5f5f5', foreground='black', font=('Kanit', 12, 'bold'))
-        self.style.map('TButton', background=[('active', '#d9d9d9')])
-        self.root.configure(bg='#f5f5f5')
 
     def _create_widgets(self):
         self._create_buttons()
@@ -51,34 +38,17 @@ class EMLAnalyzerApp:
         self._create_tabs()
 
     def _create_tabs(self):
-        self.tab_headers = self._create_tab('Headers')
-        self.tab_attachments = self._create_tab('Attachments')
-        self.tab_urls = self._create_tab('URLs')
-        self.tab_preview = self._create_tab('Preview')
-        self.tab_lookup = self._create_tab('Lookup')
+        self.tab_headers = create_tab(self.notebook, 'Headers')
+        self.tab_attachments = create_tab(self.notebook, 'Attachments')
+        self.tab_urls = create_tab(self.notebook, 'URLs')
+        self.tab_preview = create_tab(self.notebook, 'Preview')
+        self.tab_lookup = create_tab(self.notebook, 'Lookup')
 
-        self.headers_text = self._create_scrolled_text(self.tab_headers)
-        self.attachments_text = self._create_scrolled_text(self.tab_attachments)
+        self.headers_text = create_scrolled_text(self.tab_headers)
+        self.attachments_text = create_scrolled_text(self.tab_attachments)
         self._create_urls_tab()
-        self.preview_html = self._create_html_label(self.tab_preview, "<p>Preview will appear here after uploading an email file.</p>")
-        self.lookup_text = self._create_scrolled_text(self.tab_lookup)
-
-    def _create_tab(self, text):
-        tab = ttk.Frame(self.notebook, padding="10 10 10 10")
-        self.notebook.add(tab, text=text)
-        return tab
-
-    def _create_scrolled_text(self, parent):
-        text_widget = scrolledtext.ScrolledText(parent, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff', fg='#000000')
-        text_widget.pack(expand=True, fill='both', padx=10, pady=10)
-        return text_widget
-
-    def _create_html_label(self, parent, initial_html):
-        frame = ttk.Frame(parent)
-        frame.pack(expand=True, fill='both', padx=10, pady=10)
-        html_label = HTMLLabel(frame, html=initial_html)
-        html_label.pack(expand=True, fill='both')
-        return html_label
+        self.preview_html = create_html_label(self.tab_preview, "<p>Preview will appear here after uploading an email file.</p>")
+        self.lookup_text = create_scrolled_text(self.tab_lookup)
 
     def _create_urls_tab(self):
         columns = ('#', 'URL')
@@ -143,7 +113,7 @@ class EMLAnalyzerApp:
 
     def _display_email_preview(self, eml_file_path):
         with open(eml_file_path, 'rb') as eml_file:
-            msg = email.message_from_binary_file(eml_file)
+            msg = email_analysis.email.message_from_binary_file(eml_file)
         subject = msg['subject']
         from_ = msg['from']
         date = msg['date']
@@ -156,12 +126,9 @@ class EMLAnalyzerApp:
         <hr>
         """
         for part in msg.walk():
-            if part.get_content_type() == 'text/plain':
-                text = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                html_content += f"<pre>{text}</pre>"
-            elif part.get_content_type() == 'text/html':
-                html = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                html_content += html
+            if part.get_content_type() in ['text/plain', 'text/html']:
+                content = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                html_content += f"<pre>{content}</pre>" if part.get_content_type() == 'text/plain' else content
         self.preview_html.set_html(html_content)
 
     def open_selected_url(self, event):
