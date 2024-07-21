@@ -1,8 +1,8 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk, simpledialog
 import webbrowser
 from email_analysis import email_analysis
-from virustotal_api import domain_lookup
+from virustotal_api import domain_lookup, upload_file_to_virustotal, get_file_report, scan_url_with_virustotal
 from ui_helpers import configure_styles, create_tab, create_scrolled_text, create_html_label
 import re
 
@@ -18,8 +18,16 @@ class EMLAnalyzerApp:
         self.sender_domain = None
 
     def _create_widgets(self):
+        self._create_title()
         self._create_buttons()
         self._create_notebook()
+
+    def _create_title(self):
+        title_frame = ttk.Frame(self.root, padding="10 10 10 10")
+        title_frame.pack(fill='x')
+
+        title_label = ttk.Label(title_frame, text="EML Analyzer", style="Title.TLabel")
+        title_label.pack(side='left', pady=10, padx=5)
 
     def _create_buttons(self):
         button_frame = ttk.Frame(self.root, padding="10 10 10 10")
@@ -30,6 +38,15 @@ class EMLAnalyzerApp:
 
         self.lookup_button = ttk.Button(button_frame, text="Domain Lookup", command=self.domain_lookup)
         self.lookup_button.pack(side='left', pady=10, padx=5)
+
+        self.attachment_report_button = ttk.Button(button_frame, text="Attachment Report", command=self.attachment_report)
+        self.attachment_report_button.pack(side='left', pady=10, padx=5)
+
+        self.url_scan_button = ttk.Button(button_frame, text="URL Scan", command=self.url_scan)
+        self.url_scan_button.pack(side='left', pady=10, padx=5)
+
+        self.start_sandbox_button = ttk.Button(button_frame, text="Start Sandbox", command=self.start_sandbox)
+        self.start_sandbox_button.pack(side='left', pady=10, padx=5)
 
     def _create_notebook(self):
         self.notebook = ttk.Notebook(self.root)
@@ -104,8 +121,8 @@ class EMLAnalyzerApp:
 
     def _display_attachments(self):
         self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n')
-        for attachment in email_analysis.ATTACHMENT_HASHES:
-            self.attachments_text.insert(tk.END, f"Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
+        for i, attachment in enumerate(email_analysis.ATTACHMENT_HASHES, start=1):
+            self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
 
     def _display_urls(self, urls):
         for i, url in enumerate(urls, 1):
@@ -149,8 +166,58 @@ class EMLAnalyzerApp:
         else:
             messagebox.showerror("Error", "Failed to retrieve data from VirusTotal.")
 
+    def attachment_report(self):
+        if not email_analysis.ATTACHMENT_HASHES:
+            messagebox.showerror("Error", "No attachments found.")
+            return
 
-if __name__ == '__main__':
+        attachment_index = simpledialog.askinteger(
+            "Select Attachment",
+            "Enter the attachment number you want to analyze:",
+            minvalue=1,
+            maxvalue=len(email_analysis.ATTACHMENT_HASHES)
+        )
+
+        if attachment_index is None:
+            return
+
+        attachment = email_analysis.ATTACHMENT_HASHES[attachment_index - 1]
+        analysis_id = upload_file_to_virustotal(attachment['filename'])
+
+        if analysis_id:
+            report = get_file_report(analysis_id)
+            self._display_attachment_report(report)
+        else:
+            messagebox.showerror("Error", "Failed to upload and analyze the attachment.")
+
+    def _display_attachment_report(self, report):
+        self.lookup_text.delete(1.0, tk.END)
+        self.lookup_text.insert(tk.END, "Attachment Analysis Report:\n\n")
+        for key, value in report['data']['attributes'].items():
+            self.lookup_text.insert(tk.END, f"{key}:{value}\n")
+
+    def url_scan(self):
+        selected_url = simpledialog.askstring("URL Scan", "Enter the URL you want to scan:")
+        if not selected_url:
+            return
+        scan_result = scan_url_with_virustotal(selected_url)
+        if scan_result:
+            self._display_url_scan_result(scan_result)
+        else:
+            messagebox.showerror("Error", "Failed to scan the URL.")
+
+    def _display_url_scan_result(self, scan_result):
+        self.lookup_text.delete(1.0, tk.END)
+        self.lookup_text.insert(tk.END, "URL Scan Report:\n\n")
+        for key, value in scan_result['data']['attributes'].items():
+            self.lookup_text.insert(tk.END, f"{key}: {value}\n")
+
+    def start_sandbox(self):
+        messagebox.showinfo("Start Sandbox", "Sandbox analysis functionality is not implemented yet.")
+
+
+
+if __name__ == "__main__":
     root = tk.Tk()
     app = EMLAnalyzerApp(root)
     root.mainloop()

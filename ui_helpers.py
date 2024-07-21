@@ -8,6 +8,7 @@ def configure_styles(root):
     style.configure('TButton', font=('Kanit', 12), padding=[5, 5])
     style.configure('TFrame', background='#f5f5f5')
     style.configure('Header.TLabel', background='#f5f5f5', foreground='black', font=('Kanit', 12, 'bold'))
+    style.configure('Title.TLabel', font=('Kanit', 20, 'bold'), foreground='black')
     style.map('TButton', background=[('active', '#d9d9d9')])
     root.configure(bg='#f5f5f5')
 
