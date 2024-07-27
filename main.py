@@ -102,25 +102,27 @@ class EMLAnalyzerApp:
             'Delivered-To', 'ARC-Authentication-Results', 'Return-Path',
             'Date', 'From', 'Subject'
         ]
-        arc_sub_headers = ['dkim', 'spf', 'dmarc']
-        self.headers_text.insert(tk.END, '\nHEADERS:\n')
+        arc_sub_headers = {'dkim': 'DKIM', 'spf': 'SPF', 'dmarc': 'DMARC'}
+        self.headers_text.insert(tk.END, '\nHEADERS:\n', 'bold')
         for key in ordered_headers:
             if key in headers:
                 if key == 'ARC-Authentication-Results':
-                    for sub_header in arc_sub_headers:
-                        pattern = rf'{sub_header}=[^\s;]+'
+                    for sub_header, display_name in arc_sub_headers.items():
+                        pattern = rf'{sub_header}=(\w+)'
                         match = re.search(pattern, headers[key])
                         if match:
-                            self.headers_text.insert(tk.END, f'{sub_header.upper()}: {match.group(0)}\n')
+                            self.headers_text.insert(tk.END, f'{display_name}: ', 'header_key')
+                            self.headers_text.insert(tk.END, f'{match.group(1)}\n')
                 else:
-                    self.headers_text.insert(tk.END, f'{key}: {headers[key]}\n')
-        self.headers_text.insert(tk.END, f'\nFrom Header (Global): {email_analysis.FROM_HEADER}\n')
+                    self.headers_text.insert(tk.END, f'{key}: ', 'header_key')
+                    self.headers_text.insert(tk.END, f'{headers[key]}\n')
+        self.headers_text.insert(tk.END, f'\nFrom Header (Global): {email_analysis.FROM_HEADER}\n', 'header_key')
         self.sender_domain = re.search("@[\w.]+", email_analysis.FROM_HEADER)
         if self.sender_domain:
             self.sender_domain = self.sender_domain.group()[1:]
 
     def _display_attachments(self):
-        self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n')
+        self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n', 'bold')
         for i, attachment in enumerate(email_analysis.ATTACHMENT_HASHES, start=1):
             self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
 
@@ -192,9 +194,9 @@ class EMLAnalyzerApp:
 
     def _display_attachment_report(self, report):
         self.lookup_text.delete(1.0, tk.END)
-        self.lookup_text.insert(tk.END, "Attachment Analysis Report:\n\n")
-        for key, value in report['data']['attributes'].items():
+        for key,value in report['data']['attributes'].items():
             self.lookup_text.insert(tk.END, f"{key}:{value}\n")
+
 
     def url_scan(self):
         selected_url = simpledialog.askstring("URL Scan", "Enter the URL you want to scan:")
@@ -214,7 +216,6 @@ class EMLAnalyzerApp:
 
     def start_sandbox(self):
         messagebox.showinfo("Start Sandbox", "Sandbox analysis functionality is not implemented yet.")
-
 
 
 if __name__ == "__main__":

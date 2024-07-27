@@ -22,6 +22,8 @@ def create_tab(notebook, text):
 def create_scrolled_text(parent):
     text_widget = scrolledtext.ScrolledText(parent, wrap='word', font=("Kanit", 10), bg='#ffffff', fg='#000000')
     text_widget.pack(expand=True, fill='both', padx=10, pady=10)
+    text_widget.tag_configure('header_key', font=("Kanit", 12, 'bold'), foreground='#000000')
+    text_widget.tag_configure('bold', font=("Kanit", 12, 'bold'))
     return text_widget
 
 
