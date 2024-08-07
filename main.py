@@ -1,10 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk, simpledialog
 import webbrowser
-from email_analysis import email_analysis
-from virustotal_api import domain_lookup, upload_file_to_virustotal, get_file_report, scan_url_with_virustotal
-from ui_helpers import configure_styles, create_tab, create_scrolled_text, create_html_label
 import re
+import boto3
+from email_analysis import email_analysis
+from security_api import domain_lookup, upload_file_to_virustotal, get_file_report, scan_url_with_urlscan
+from ui_helpers import configure_styles, create_tab, create_scrolled_text, create_html_label
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 class EMLAnalyzerApp:
     def __init__(self, root):
@@ -16,6 +18,7 @@ class EMLAnalyzerApp:
         self._create_widgets()
 
         self.sender_domain = None
+        self.virustotal_file_id = None
 
     def _create_widgets(self):
         self._create_title()
@@ -39,8 +42,11 @@ class EMLAnalyzerApp:
         self.lookup_button = ttk.Button(button_frame, text="Domain Lookup", command=self.domain_lookup)
         self.lookup_button.pack(side='left', pady=10, padx=5)
 
-        self.attachment_report_button = ttk.Button(button_frame, text="Attachment Report", command=self.attachment_report)
-        self.attachment_report_button.pack(side='left', pady=10, padx=5)
+        self.upload_attachment_button = ttk.Button(button_frame, text="Upload Attachment to VirusTotal", command=self.upload_attachment)
+        self.upload_attachment_button.pack(side='left', pady=10, padx=5)
+
+        self.get_attachment_report_button = ttk.Button(button_frame, text="Get Attachment Report", command=self.get_attachment_report)
+        self.get_attachment_report_button.pack(side='left', pady=10, padx=5)
 
         self.url_scan_button = ttk.Button(button_frame, text="URL Scan", command=self.url_scan)
         self.url_scan_button.pack(side='left', pady=10, padx=5)
@@ -124,7 +130,7 @@ class EMLAnalyzerApp:
     def _display_attachments(self):
         self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n', 'bold')
         for i, attachment in enumerate(email_analysis.ATTACHMENT_HASHES, start=1):
-            self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1: {attachment['sha1']}, SHA256: {attachment['sha256']}\n")
+            self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1:{attachment['sha1']}, SHA256:{attachment['sha256']}\n")
 
     def _display_urls(self, urls):
         for i, url in enumerate(urls, 1):
@@ -168,54 +174,80 @@ class EMLAnalyzerApp:
         else:
             messagebox.showerror("Error", "Failed to retrieve data from VirusTotal.")
 
-    def attachment_report(self):
-        if not email_analysis.ATTACHMENT_HASHES:
-            messagebox.showerror("Error", "No attachments found.")
+    def upload_attachment(self):
+        file_path = filedialog.askopenfilename()
+        if not file_path:
             return
 
-        attachment_index = simpledialog.askinteger(
-            "Select Attachment",
-            "Enter the attachment number you want to analyze:",
-            minvalue=1,
-            maxvalue=len(email_analysis.ATTACHMENT_HASHES)
-        )
+        self.virustotal_file_id = upload_file_to_virustotal(file_path)
 
-        if attachment_index is None:
+        if self.virustotal_file_id:
+            messagebox.showinfo("Success", "Attachment uploaded successfully. You can now get the report.")
+        else:
+            messagebox.showerror("Error", "Failed to upload the attachment.")
+
+    def get_attachment_report(self):
+        if not self.virustotal_file_id:
+            messagebox.showerror("Error", "No file uploaded to VirusTotal.")
             return
 
-        attachment = email_analysis.ATTACHMENT_HASHES[attachment_index - 1]
-        analysis_id = upload_file_to_virustotal(attachment['filename'])
-
-        if analysis_id:
-            report = get_file_report(analysis_id)
+        report = get_file_report(self.virustotal_file_id)
+        if report:
             self._display_attachment_report(report)
         else:
-            messagebox.showerror("Error", "Failed to upload and analyze the attachment.")
+            messagebox.showerror("Error", "Failed to retrieve the report.")
 
     def _display_attachment_report(self, report):
         self.lookup_text.delete(1.0, tk.END)
-        for key,value in report['data']['attributes'].items():
-            self.lookup_text.insert(tk.END, f"{key}:{value}\n")
-
+        self.lookup_text.insert(tk.END, "Attachment Report:\n\n")
+        for key, value in report['data']['attributes'].items():
+            self.lookup_text.insert(tk.END, f"{key}: {value}\n")
 
     def url_scan(self):
         selected_url = simpledialog.askstring("URL Scan", "Enter the URL you want to scan:")
         if not selected_url:
             return
-        scan_result = scan_url_with_virustotal(selected_url)
+        scan_result = scan_url_with_urlscan(selected_url)
         if scan_result:
             self._display_url_scan_result(scan_result)
         else:
             messagebox.showerror("Error", "Failed to scan the URL.")
 
     def _display_url_scan_result(self, scan_result):
-        self.lookup_text.delete(1.0, tk.END)
-        self.lookup_text.insert(tk.END, "URL Scan Report:\n\n")
-        for key, value in scan_result['data']['attributes'].items():
-            self.lookup_text.insert(tk.END, f"{key}: {value}\n")
+        result_window = tk.Toplevel(self.root)
+        result_window.title("URL Scan Result")
+        result_window.geometry("800x600")
+
+        result_text = scrolledtext.ScrolledText(result_window, wrap=tk.WORD, font=("Kanit", 10), bg='#ffffff',
+                                                fg='#000000')
+        result_text.pack(expand=True, fill='both', padx=10, pady=10)
+
+        result_text.insert(tk.END, "URL Scan Report:\n\n")
+        for key, value in scan_result.items():
+            result_text.insert(tk.END, f"{key}: {value}\n")
 
     def start_sandbox(self):
-        messagebox.showinfo("Start Sandbox", "Sandbox analysis functionality is not implemented yet.")
+        try:
+            ec2 = boto3.resource('ec2')
+            instance = ec2.create_instances(
+                ImageId='ami-0c55b159cbfafe1f0',  # Replace with your desired AMI ID
+                MinCount=1,
+                MaxCount=1,
+                InstanceType='t2.micro',  # Replace with your desired instance type
+                KeyName='your-key-pair-name',  # Replace with your key pair name
+                TagSpecifications=[{
+                    'ResourceType': 'instance',
+                    'Tags': [{'Key': 'Name', 'Value': 'SandboxInstance'}]
+                }]
+            )
+            instance_id = instance[0].id
+            messagebox.showinfo("Success", f"EC2 instance created with ID: {instance_id}")
+        except NoCredentialsError:
+            messagebox.showerror("Error", "AWS credentials not found.")
+        except PartialCredentialsError:
+            messagebox.showerror("Error", "Incomplete AWS credentials.")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
 
 if __name__ == "__main__":

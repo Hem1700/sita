@@ -9,7 +9,6 @@ FROM_HEADER = None
 ATTACHMENT_HASHES = []
 URLS = []
 
-
 def extract_eml_details(eml_file_path):
     global FROM_HEADER, ATTACHMENT_HASHES, URLS
 
@@ -30,7 +29,6 @@ def extract_eml_details(eml_file_path):
         'urls': filtered_urls
     }
 
-
 def _extract_headers(msg):
     headers_to_extract = [
         'Delivered-To', 'ARC-Authentication-Results', 'Return-Path',
@@ -38,10 +36,8 @@ def _extract_headers(msg):
     ]
     return {key: value for key, value in msg.items() if key in headers_to_extract}
 
-
 def _extract_x_headers(msg):
     return {key: value for key, value in msg.items() if key.lower().startswith('x-')}
-
 
 def _extract_attachments(msg):
     global ATTACHMENT_HASHES
@@ -56,7 +52,6 @@ def _extract_attachments(msg):
                 attachments.append(attachment)
 
     return attachments
-
 
 def _save_attachment(part, filename):
     global ATTACHMENT_HASHES
@@ -75,7 +70,6 @@ def _save_attachment(part, filename):
 
     return {'filename': filename, **hashes}
 
-
 def _calculate_hashes(filename):
     md5_hash = hashlib.md5()
     sha1_hash = hashlib.sha1()
@@ -92,7 +86,6 @@ def _calculate_hashes(filename):
         'sha1': sha1_hash.hexdigest(),
         'sha256': sha256_hash.hexdigest()
     }
-
 
 def _extract_urls(msg):
     global URLS
