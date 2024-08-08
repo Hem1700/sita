@@ -9,7 +9,6 @@
 
 ### Things to do:
 
- - Need to integrate VirusTotal, URLScan, and Hunter.io APIs
- - For any attachment hash check use VirusTotal. Also see if you can integrate anything else in this
- - Integrate AWS for Sandbox Environment.
+ - For any attachment hash check use VirusTotal. 
+ - Integrate AWS for Sandbox Environment. (just add api and other information and check if it's working)
 
