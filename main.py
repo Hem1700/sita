@@ -128,7 +128,7 @@ class EMLAnalyzerApp:
             self.sender_domain = self.sender_domain.group()[1:]
 
     def _display_attachments(self):
-        self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n', 'bold')
+        self.attachments_text.insert(tk.END, '\n/Users/hemparekh/Desktop/ATTACHMENTS:\n', 'bold')
         for i, attachment in enumerate(email_analysis.ATTACHMENT_HASHES, start=1):
             self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1:{attachment['sha1']}, SHA256:{attachment['sha256']}\n")
 
