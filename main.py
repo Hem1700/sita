@@ -11,7 +11,7 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 class EMLAnalyzerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("EML Analyzer")
+        self.root.title("SITA")
         self.root.geometry("1000x700")
 
         configure_styles(self.root)
@@ -26,10 +26,16 @@ class EMLAnalyzerApp:
         self._create_notebook()
 
     def _create_title(self):
+        # Define a style with white text color
+        style = ttk.Style()
+        style.configure("Title.TLabel", foreground="white")
+
+        # Create a frame for the title
         title_frame = ttk.Frame(self.root, padding="10 10 10 10")
         title_frame.pack(fill='x')
 
-        title_label = ttk.Label(title_frame, text="EML Analyzer", style="Title.TLabel")
+        # Create the label with the defined style
+        title_label = ttk.Label(title_frame, text="SITA", style="Title.TLabel")
         title_label.pack(side='left', pady=10, padx=5)
 
     def _create_buttons(self):
@@ -128,9 +134,9 @@ class EMLAnalyzerApp:
             self.sender_domain = self.sender_domain.group()[1:]
 
     def _display_attachments(self):
-        self.attachments_text.insert(tk.END, '\n/Users/hemparekh/Desktop/ATTACHMENTS:\n', 'bold')
+        self.attachments_text.insert(tk.END, '\nATTACHMENTS:\n', 'bold')
         for i, attachment in enumerate(email_analysis.ATTACHMENT_HASHES, start=1):
-            self.attachments_text.insert(tk.END, f"{i}. Filename: {attachment['filename']}, MD5: {attachment['md5']}, SHA1:{attachment['sha1']}, SHA256:{attachment['sha256']}\n")
+            self.attachments_text.insert(tk.END, f" {i}. Filename: {attachment['filename']},\n 2. MD5: {attachment['md5']},\n 3. SHA1:{attachment['sha1']},\n 4. SHA256:{attachment['sha256']}\n")
 
     def _display_urls(self, urls):
         for i, url in enumerate(urls, 1):
