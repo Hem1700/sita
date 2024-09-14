@@ -236,11 +236,11 @@ class EMLAnalyzerApp:
         try:
             ec2 = boto3.resource('ec2')
             instance = ec2.create_instances(
-                ImageId='ami-0c55b159cbfafe1f0',  # Replace with your desired AMI ID
+                ImageId='ami-0e86e20dae9224db8',  # Replace with your desired AMI ID
                 MinCount=1,
                 MaxCount=1,
                 InstanceType='t2.micro',  # Replace with your desired instance type
-                KeyName='your-key-pair-name',  # Replace with your key pair name
+                KeyName='sita',  # Replace with your key pair name
                 TagSpecifications=[{
                     'ResourceType': 'instance',
                     'Tags': [{'Key': 'Name', 'Value': 'SandboxInstance'}]
