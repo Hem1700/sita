@@ -6,9 +6,9 @@
  - Also need to do domain checks by doing a WHOis look - Use VirusTotal for that
  - Extra Feature - See if you can create a toggle to display Email in the UI itself (Preview of Email).
  - For URL Scan use URLScan API.
+ - Integrate AWS for Sandbox Environment. (done)
 
 ### Things to do:
 
  - For any attachment hash check use VirusTotal. 
- - Integrate AWS for Sandbox Environment. (just add api and other information and check if it's working)
 
