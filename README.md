@@ -7,8 +7,9 @@
  - Extra Feature - See if you can create a toggle to display Email in the UI itself (Preview of Email).
  - For URL Scan use URLScan API.
  - Integrate AWS for Sandbox Environment. (done)
+ - For any attachment hash check use VirusTotal. 
 
 ### Things to do:
+ - Write the paper and make outputs a bit better
 
- - For any attachment hash check use VirusTotal. 
 
