@@ -10,6 +10,7 @@ VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
 URLSCAN_API_KEY = os.getenv('URLSCAN_API_KEY')
 
 DOMAIN_BASE_URL = 'https://www.virustotal.com/api/v3/domains/'
+UPLOAD_URL = "https://www.virustotal.com/vtapi/v2/file/scan"
 FILE_BASE_URL = 'https://www.virustotal.com/api/v3/files/'
 
 def domain_lookup(domain):
@@ -18,18 +19,14 @@ def domain_lookup(domain):
     return response.json() if response.status_code == 200 else None
 
 def upload_file_to_virustotal(file_path):
-    url = FILE_BASE_URL
-    headers = {
-        "accept": "application/json",
-        "x-apikey": VIRUSTOTAL_API_KEY,
-        "content-type": "multipart/form-data"
-    }
+    url = UPLOAD_URL
     try:
         with open(file_path, 'rb') as file:
             files = {"file": (os.path.basename(file_path), file)}
-            response = requests.post(url, headers=headers, files=files)
+            params = {'apikey': VIRUSTOTAL_API_KEY}
+            response = requests.post(url, files=files, params=params)
         if response.status_code == 200:
-            return response.json()['data']['id']
+            return response.json()['sha1']
         else:
             print(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
             return None
